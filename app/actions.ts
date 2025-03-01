@@ -8,6 +8,9 @@ import { redirect } from "next/navigation";
 export const signUpAction = async (formData: FormData) => {
   const email = formData.get("email")?.toString();
   const password = formData.get("password")?.toString();
+  if(!email || !password) {
+    return encodedRedirect("error", "/sign-up", "Email and password are required");
+  }
   const supabase = await createClient();
   const origin = (await headers()).get("origin");
 
@@ -42,12 +45,26 @@ export const signUpAction = async (formData: FormData) => {
 export const signInAction = async (formData: FormData) => {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
+  if(!email || !password) {  
+    return encodedRedirect("error", "/sign-in", "Email and password are required");
+  }
   const supabase = await createClient();
 
   const { error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
+
+  if (error) {
+    return encodedRedirect("error", "/sign-in", error.message);
+  }
+
+  return redirect("/protected");
+};
+export const signInGoogleAction = async (formData: FormData) => {
+  const supabase = await createClient();
+
+  const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' })
 
   if (error) {
     return encodedRedirect("error", "/sign-in", error.message);
