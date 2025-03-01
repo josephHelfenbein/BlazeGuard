@@ -18,7 +18,7 @@ export default async function Login(props: { searchParams: Promise<Message> }) {
       </p>
       <div className="flex flex-col gap-2 [&>input]:mb-3 mt-8">
         <Label htmlFor="email">Email</Label>
-        <Input name="email" placeholder="you@example.com" required />
+        <Input name="email" placeholder="you@example.com" />
         <div className="flex justify-between items-center">
           <Label htmlFor="password">Password</Label>
           <Link
@@ -32,12 +32,11 @@ export default async function Login(props: { searchParams: Promise<Message> }) {
           type="password"
           name="password"
           placeholder="Your password"
-          required
         />
         <SubmitButton pendingText="Signing In..." formAction={signInAction}>
           Sign in
         </SubmitButton>
-        <SubmitButton formAction={signInGoogleAction} pendingText="Signing up...">
+        <SubmitButton formAction={signInGoogleAction} pendingText="Signing in...">
             Sign in with Google
         </SubmitButton>
         <FormMessage message={searchParams} />
