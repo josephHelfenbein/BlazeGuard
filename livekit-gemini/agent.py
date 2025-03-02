@@ -1,6 +1,7 @@
 import logging
 
 from dotenv import load_dotenv
+import aiohttp
 from livekit.agents import (
     AutoSubscribe,
     JobContext,
@@ -12,7 +13,7 @@ from livekit.agents import (
 )
 from livekit.agents.pipeline import VoicePipelineAgent
 from livekit.plugins import cartesia, openai, deepgram, silero, google, turn_detector
-
+from typing import Annotated
 
 
 load_dotenv(dotenv_path=".env.local")
@@ -22,6 +23,26 @@ logger = logging.getLogger("voice-agent")
 def prewarm(proc: JobProcess):
     proc.userdata["vad"] = silero.VAD.load()
 
+class AssistantFnc(llm.FunctionContext):
+    @llm.ai_callable()
+    async def get_medical(
+        self,
+        name: Annotated[
+            str, llm.TypeInfo(description="The name of the user")
+        ],
+    ):
+        """Called when the user asks about the medical data. This function will return the medical data for the given user name."""
+        logger.info(f"getting medical data for {name}")
+        url = f"https://henhacks2025.vercel.app/api/medical-data?name=${name}"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as response:
+                if response.status == 200:
+                    data = await response.text()
+                    return f"The medical data for {name} is: {data}"
+                else:
+                    raise f"Failed to get user medical data, status code: {response.status}"
+
+fnc_ctx = AssistantFnc()
 
 async def entrypoint(ctx: JobContext):
     initial_ctx = llm.ChatContext().append(
@@ -50,6 +71,7 @@ async def entrypoint(ctx: JobContext):
         llm=openai.LLM.with_vertex(model="google/gemini-2.0-flash-exp"),
         tts=deepgram.TTS(),
         turn_detector=turn_detector.EOUModel(),
+        fnc_ctx=fnc_ctx,
         chat_ctx=initial_ctx,
     )
 
