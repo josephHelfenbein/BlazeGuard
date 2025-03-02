@@ -116,35 +116,43 @@ export const mockFireData = {
 export const mockAlerts = [
   {
     id: "alert-1",
+    title: "Village Evacuation Warning",
     location: "Yosemite Village",
     predictedTime: new Date("2023-07-15T18:30:00"),
-    severity: "high",
+    timestamp: new Date("2023-07-15T18:00:00"),
+    severity: "high" as const,
     message:
       "Fire expected to reach village perimeter. Evacuation recommended.",
     isRead: false,
   },
   {
     id: "alert-2",
+    title: "Highway Closure Alert",
     location: "Highway 120",
     predictedTime: new Date("2023-07-16T08:15:00"),
-    severity: "medium",
+    timestamp: new Date("2023-07-16T07:45:00"),
+    severity: "medium" as const,
     message: "Road closure expected due to fire spread.",
     isRead: true,
   },
   {
     id: "alert-3",
+    title: "Immediate Evacuation Order",
     location: "El Capitan Meadow",
     predictedTime: new Date("2023-07-16T14:45:00"),
-    severity: "high",
+    timestamp: new Date("2023-07-16T14:15:00"),
+    severity: "high" as const,
     message:
       "Rapid fire spread predicted. All personnel must evacuate immediately.",
     isRead: false,
   },
   {
     id: "alert-4",
+    title: "Air Quality Advisory",
     location: "Glacier Point",
     predictedTime: new Date("2023-07-17T10:30:00"),
-    severity: "low",
+    timestamp: new Date("2023-07-17T10:00:00"),
+    severity: "low" as const,
     message:
       "Smoke conditions expected to worsen. Air quality advisory in effect.",
     isRead: false,

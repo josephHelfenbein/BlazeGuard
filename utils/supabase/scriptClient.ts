@@ -1,7 +1,9 @@
-const { createClient: createSupabaseClient } = require("@supabase/supabase-js");
-require("dotenv").config();
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import dotenv from "dotenv";
 
-function createScriptClient() {
+dotenv.config();
+
+export function createScriptClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -11,5 +13,3 @@ function createScriptClient() {
 
   return createSupabaseClient(supabaseUrl, supabaseKey);
 }
-
-module.exports = { createScriptClient };

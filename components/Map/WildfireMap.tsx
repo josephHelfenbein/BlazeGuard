@@ -8,11 +8,44 @@ import "mapbox-gl/dist/mapbox-gl.css";
 // Make sure this is properly set in your .env.local file
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 
+interface FireFeature {
+  type: "Feature";
+  properties: {
+    id: string;
+    name: string;
+    timestamp: string;
+    intensity: string;
+  };
+  geometry: {
+    type: "Polygon";
+    coordinates: number[][][];
+  };
+}
+
+interface FireData {
+  type: "FeatureCollection";
+  features: FireFeature[];
+  pointsOfInterest: {
+    id: string;
+    name: string;
+    description: string;
+    latitude: number;
+    longitude: number;
+  }[];
+}
+
 interface WildfireMapProps {
   initialCenter: [number, number]; // [longitude, latitude]
   initialZoom: number;
-  fireData: any; // Replace with proper type for your fire data
+  fireData: FireData;
   currentTime: Date;
+  onMapMove?: (position: {
+    lat: number;
+    lng: number;
+    elevation: number;
+    temperature: number;
+    territory: string;
+  }) => void;
 }
 
 export default function WildfireMap({
@@ -20,6 +53,7 @@ export default function WildfireMap({
   initialZoom,
   fireData,
   currentTime,
+  onMapMove,
 }: WildfireMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -67,6 +101,22 @@ export default function WildfireMap({
         });
 
         map.current.setTerrain({ source: "mapbox-dem", exaggeration: 1.5 });
+
+        // Add move event listener for position updates
+        if (onMapMove) {
+          map.current.on("move", () => {
+            const center = map.current?.getCenter();
+            if (center) {
+              onMapMove({
+                lat: center.lat,
+                lng: center.lng,
+                elevation: 1200, // This should be calculated from terrain data
+                temperature: 85, // This should come from weather data
+                territory: "Yosemite National Park",
+              });
+            }
+          });
+        }
       });
 
       map.current.on("error", (e) => {
@@ -87,7 +137,7 @@ export default function WildfireMap({
         map.current = null;
       }
     };
-  }, [initialCenter, initialZoom]);
+  }, [initialCenter, initialZoom, onMapMove]);
 
   // Update fire overlay when data or time changes
   useEffect(() => {
@@ -130,13 +180,14 @@ export default function WildfireMap({
   }, [mapLoaded, fireData, currentTime]);
 
   // Helper functions
-  const filterFireDataByTime = (data: any, time: Date) => {
-    // Implement logic to filter fire data based on the current time
-    // Return GeoJSON with fire perimeters visible at the given time
+  const filterFireDataByTime = (
+    data: FireData,
+    time: Date
+  ): GeoJSON.FeatureCollection => {
     return {
       type: "FeatureCollection",
       features: data.features.filter(
-        (feature: any) => new Date(feature.properties.timestamp) <= time
+        (feature) => new Date(feature.properties.timestamp) <= time
       ),
     };
   };

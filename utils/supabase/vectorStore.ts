@@ -1,10 +1,8 @@
-const {
-  SupabaseVectorStore,
-} = require("@langchain/community/vectorstores/supabase");
-const { GoogleGenerativeAIEmbeddings } = require("@langchain/google-genai");
-const { createScriptClient } = require("./scriptClient");
+import { SupabaseVectorStore } from "@langchain/community/vectorstores/supabase";
+import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import { createScriptClient } from "./scriptClient";
 
-async function createVectorStore() {
+export async function createVectorStore() {
   const supabase = createScriptClient();
 
   const embeddings = new GoogleGenerativeAIEmbeddings({
@@ -17,14 +15,10 @@ async function createVectorStore() {
     tableName: "emergency_response_embeddings",
     queryName: "match_emergency_documents",
     filter: {},
-    similarityK: 4,
-    similarityThreshold: 0.5,
   });
 }
 
-async function similaritySearch(query, k = 4) {
+export async function similaritySearch(query, k = 4) {
   const vectorStore = await createVectorStore();
   return vectorStore.similaritySearch(query, k);
 }
-
-module.exports = { createVectorStore, similaritySearch };

@@ -54,7 +54,7 @@ export default function WildfireTrackerPage() {
     // Create a polygon that grows with time
     const createFirePolygon = () => {
       // Create 5 points for the polygon
-      const points = [];
+      const points: [number, number][] = [];
       const numPoints = 5;
 
       for (let i = 0; i < numPoints; i++) {
@@ -80,17 +80,19 @@ export default function WildfireTrackerPage() {
       }
 
       // Close the polygon by adding the first point again
-      points.push(points[0]);
+      if (points.length > 0) {
+        points.push([...points[0]]);
+      }
 
       return points;
     };
 
     // Create a GeoJSON feature for the fire
     return {
-      type: "FeatureCollection",
+      type: "FeatureCollection" as const,
       features: [
         {
-          type: "Feature",
+          type: "Feature" as const,
           properties: {
             id: "fire-live",
             name: "Yosemite Valley Fire",
@@ -103,7 +105,7 @@ export default function WildfireTrackerPage() {
                   : "medium",
           },
           geometry: {
-            type: "Polygon",
+            type: "Polygon" as const,
             coordinates: [createFirePolygon()],
           },
         },
@@ -156,10 +158,12 @@ export default function WildfireTrackerPage() {
           // Add a new alert
           const newAlert: Alert = {
             id: `wildfire-${Date.now()}`,
-            title: "Live Wildfire Data",
+            title: "Live Connection Established",
+            location: "Yosemite National Park",
             message: "Connected to live wildfire data stream",
             timestamp: new Date(),
-            severity: "warning",
+            predictedTime: new Date(Date.now() + 60 * 60000),
+            severity: "low",
             isRead: false,
           };
           setAlerts((prev) => [newAlert, ...prev]);
@@ -169,10 +173,12 @@ export default function WildfireTrackerPage() {
         if (payload.payload.time === 30) {
           const newAlert: Alert = {
             id: `wildfire-spread-${Date.now()}`,
-            title: "Fire Spreading",
+            title: "Fire Spread Warning",
+            location: "Northeast Region",
             message: "Fire is spreading rapidly to the northeast",
             timestamp: new Date(),
-            severity: "warning",
+            predictedTime: new Date(Date.now() + 30 * 60000),
+            severity: "medium",
             isRead: false,
           };
           setAlerts((prev) => [newAlert, ...prev]);
@@ -181,11 +187,13 @@ export default function WildfireTrackerPage() {
         if (payload.payload.time === 60) {
           const newAlert: Alert = {
             id: `wildfire-danger-${Date.now()}`,
-            title: "Danger Zone",
+            title: "Critical Fire Intensity",
+            location: "Multiple Regions",
             message:
               "Fire has reached critical intensity. Evacuation recommended.",
             timestamp: new Date(),
-            severity: "danger",
+            predictedTime: new Date(Date.now() + 15 * 60000),
+            severity: "high",
             isRead: false,
           };
           setAlerts((prev) => [newAlert, ...prev]);
@@ -194,11 +202,13 @@ export default function WildfireTrackerPage() {
         if (payload.payload.time === 90) {
           const newAlert: Alert = {
             id: `wildfire-evac-${Date.now()}`,
-            title: "Evacuation Order",
+            title: "Mandatory Evacuation Order",
+            location: "Yosemite Village",
             message:
               "Mandatory evacuation for Yosemite Village. Proceed to evacuation centers.",
             timestamp: new Date(),
-            severity: "danger",
+            predictedTime: new Date(Date.now() + 10 * 60000),
+            severity: "high",
             isRead: false,
           };
           setAlerts((prev) => [newAlert, ...prev]);
