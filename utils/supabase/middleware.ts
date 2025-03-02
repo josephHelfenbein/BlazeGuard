@@ -39,11 +39,12 @@ export const updateSession = async (request: NextRequest) => {
     // https://supabase.com/docs/guides/auth/server-side/nextjs
     const user = await supabase.auth.getUser();
 
-    // Allow access to root path "/" and auth routes
+    // Allow access to root path "/", auth routes, and all API routes
     if (
       request.nextUrl.pathname === '/' ||
       request.nextUrl.pathname === '/sign-in' ||
-      request.nextUrl.pathname === '/sign-up'
+      request.nextUrl.pathname === '/sign-up' ||
+      request.nextUrl.pathname.startsWith('/api/')
     ) {
       return response;
     }

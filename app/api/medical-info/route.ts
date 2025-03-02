@@ -81,28 +81,28 @@ export async function GET(req: NextRequest) {
   try {
     const supabase = await createClient();
 
-    // Check if user is authenticated
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { searchParams } = new URL(req.url);
+    const name = searchParams.get("name");
 
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!name) {
+      return NextResponse.json(
+        { error: "Missing required parameter: name" },
+        { status: 400 }
+      );
     }
 
-    console.log("Fetching medical info for user:", user.id);
+    console.log("Fetching medical info for:", name);
 
-    // Get medical info for the current user
     const { data, error } = await supabase
       .from("medical_info")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("name", name)
+      .limit(1)
       .single();
 
     console.log("Fetch result:", data, error);
 
     if (error && error.code !== "PGRST116") {
-      // PGRST116 is "no rows returned" error
       console.error("Error fetching medical info:", error);
       return NextResponse.json(
         { error: "Failed to fetch medical information", details: error },
@@ -122,3 +122,4 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+

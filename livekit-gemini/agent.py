@@ -33,14 +33,29 @@ class AssistantFnc(llm.FunctionContext):
     ):
         """Called when the user asks about the medical data. This function will return the medical data for the given user name."""
         logger.info(f"getting medical data for {name}")
-        url = f"https://henhacks2025.vercel.app/api/medical-data?name=${name}"
+        url = f"https://henhacks2025.vercel.app/api/medical-data?name={name}"
+        logger.info(url)
         async with aiohttp.ClientSession() as session:
-            async with session.get(url) as response:
+            headers = {"Accept": "application/json"}
+            async with session.get(url, headers=headers) as response:
                 if response.status == 200:
-                    data = await response.text()
-                    return f"The medical data for {name} is: {data}"
+                    logger.info(response)
+                    data = await response.json() 
+                    logger.info(data)
+                    user_data = data.get("data", {})
+                    medical_info = user_data.get("medical_info", {})
+
+                    return (f"The medical data for {user_data.get('name', 'Unknown')} is: "
+                            f"Date of birth: {user_data.get('date_of_birth', 'N/A')}, "
+                            f"Blood type: {medical_info.get('blood_type', 'N/A')}, "
+                            f"Allergies: {medical_info.get('allergies', 'None')}, "
+                            f"Medications: {medical_info.get('medications', 'None')}, "
+                            f"Conditions: {medical_info.get('chronic_conditions', 'None')}, "
+                            f"Emergency contact: {medical_info.get('emergency_contact', 'N/A')} "
+                            f"at {medical_info.get('emergency_phone', 'N/A')}.")
                 else:
-                    raise f"Failed to get user medical data, status code: {response.status}"
+                    raise Exception(f"Failed to get user medical data, status code: {response.status}")
+
 
 fnc_ctx = AssistantFnc()
 
@@ -69,7 +84,10 @@ async def entrypoint(ctx: JobContext):
         vad=ctx.proc.userdata["vad"],
         stt=deepgram.STT(),
         llm=openai.LLM.with_vertex(model="google/gemini-2.0-flash-exp"),
-        tts=deepgram.TTS(),
+        tts=google.TTS(
+            voice_name="Aoede",
+            speaking_rate=1,
+        ),
         turn_detector=turn_detector.EOUModel(),
         fnc_ctx=fnc_ctx,
         chat_ctx=initial_ctx,
