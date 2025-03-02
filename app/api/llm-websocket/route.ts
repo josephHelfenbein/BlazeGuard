@@ -6,6 +6,7 @@ const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-lite' });
 
 export async function POST(req: Request) {
   try {
+    console.log('Received request:', req);
     const { message, history } = await req.json();
     if (!message) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 });
