@@ -18,12 +18,12 @@ from typing import Annotated
 
 from realtime import AsyncRealtimeClient, RealtimeSubscribeStates
 
-load_dotenv(dotenv_path=".env.local")
+load_dotenv(dotenv_path="../.env")
 logger = logging.getLogger("voice-agent")
 
 async def publish_realtime_log(message: str):
-    realtime_url = os.getenv("SUPABASE_REALTIME_URL")
-    anon_key = os.getenv("SUPABASE_ANON_KEY")
+    realtime_url = os.getenv('NEXT_PUBLIC_SUPABASE_URL')
+    anon_key = os.getenv('NEXT_PUBLIC_SUPABASE_ANON_KEY')
     if not realtime_url or not anon_key:
         logger.error("SUPABASE_REALTIME_URL or SUPABASE_ANON_KEY not set")
         return
