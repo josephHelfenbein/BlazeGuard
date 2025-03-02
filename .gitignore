@@ -31,7 +31,10 @@ yarn-error.log*
 
 # local env files
 .env*.local
-.env
+*.env*.local
+*venv
+
+*.env
 
 # vercel
 .vercel
@@ -39,3 +42,4 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+livekit-gemini/henhacks2025-f13104960166.json
