@@ -40,7 +40,7 @@ class AssistantFnc(llm.FunctionContext):
             async with session.get(url, headers=headers) as response:
                 if response.status == 200:
                     logger.info(response)
-                    data = await response.json() 
+                    data = await response.json()
                     logger.info(data)
                     user_data = data.get("data", {})
                     medical_info = user_data.get("medical_info", {})
@@ -55,6 +55,35 @@ class AssistantFnc(llm.FunctionContext):
                             f"at {medical_info.get('emergency_phone', 'N/A')}.")
                 else:
                     raise Exception(f"Failed to get user medical data, status code: {response.status}")
+    
+    @llm.ai_callable()
+    async def get_emergency_info(
+        self,
+        query: Annotated[
+            str, llm.TypeInfo(description="The user's question about emergency response or disaster assistance")
+        ],
+    ):
+        """Called when the user asks questions about emergency response or disaster assistance. This function will query the RAG system to get relevant information."""
+        logger.info(f"Getting emergency information for query: {query}")
+        url = "https://henhacks2025.vercel.app/api/rag"
+
+        async with aiohttp.ClientSession() as session:
+            headers = {"Content-Type": "application/json"}
+            payload = {"query": query}
+            
+            logger.info(f"Sending request to {url} with payload: {payload}")
+            async with session.post(url, headers=headers, json=payload) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    logger.info(f"Received response: {data}")
+                    
+                    # Extract the response text from the API response
+                    response_text = data.get("response", "I couldn't find information about that.")
+                    return response_text
+                else:
+                    error_text = await response.text()
+                    logger.error(f"Failed to get emergency information, status code: {response.status}, error: {error_text}")
+                    raise Exception(f"Failed to get emergency information, status code: {response.status}")
 
 
 fnc_ctx = AssistantFnc()
@@ -65,7 +94,10 @@ async def entrypoint(ctx: JobContext):
         text=(
             "You are a voice assistant created by LiveKit. Your interface with users will be voice. "
             "You should use short and concise responses, and avoiding usage of unpronouncable punctuation. "
-            "You were created as a demo to showcase the capabilities of LiveKit's agents framework."
+            "You were created as a demo to showcase the capabilities of LiveKit's agents framework. "
+            "You have access to medical data for users and can retrieve it when asked. "
+            "You can also answer questions about emergency response and disaster assistance using a knowledge base. "
+            "When users ask about emergency procedures, disaster assistance, or related topics, use the get_emergency_info function to provide accurate information."
         ),
     )
 

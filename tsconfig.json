@@ -31,7 +31,9 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     "app/api/gemini/route.js",
-    "types/**/*.d.ts"
+    "types/**/*.d.ts",
+    "scripts/checkVectorStore.js",
+    "scripts/setupVectorStore.js"
   ],
   "exclude": ["node_modules"]
 }
