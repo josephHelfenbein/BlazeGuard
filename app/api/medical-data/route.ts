@@ -6,55 +6,66 @@ export async function GET(req: NextRequest) {
   try {
     const supabase = await createClient();
 
+    // Add authentication check
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Add role-based access control if needed
+    // const { data: { user } } = await supabase.auth.getUser();
+    // if (!user || user.role !== 'emergency_responder') {
+    //   return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+    // }
+
     // Get query parameters
     const searchParams = req.nextUrl.searchParams;
     const name = searchParams.get("name");
-    const dob = searchParams.get("dob"); // Format should be YYYY-MM-DD
 
     // Validate required parameters
-    if (!name || !dob) {
+    if (!name) {
       return NextResponse.json(
         {
-          error:
-            "Both name and date of birth (dob) are required query parameters",
+          error: "Name is required as a query parameter",
         },
         { status: 400 }
       );
     }
 
-    // Query for the medical info directly using fullName and dateOfBirth
+    // Query for the medical info using only fullName and return the best match
     const { data: medicalData, error: medicalError } = await supabase
       .from("medical_info")
       .select("*")
-      .eq("fullName", name)
-      .eq("dateOfBirth", dob)
-      .single();
+      .ilike("fullName", `%${name}%`)
+      .limit(1);
 
-    if (medicalError || !medicalData) {
+    if (medicalError || !medicalData || medicalData.length === 0) {
       console.error("Database error or no data found:", medicalError);
       return NextResponse.json(
-        { error: "No user found with the provided name and date of birth" },
+        { error: "No user found with the provided name" },
         { status: 404 }
       );
     }
 
-    // Format the response
+    // Format the response (using the first/best match)
     const formattedData = {
-      user_id: medicalData.user_id,
-      name: medicalData.fullName,
-      date_of_birth: medicalData.dateOfBirth,
+      user_id: medicalData[0].user_id,
+      name: medicalData[0].fullName,
+      date_of_birth: medicalData[0].dateOfBirth,
       medical_info: {
-        emergency_contact: medicalData.emergencyContact,
-        emergency_phone: medicalData.emergencyPhone,
-        blood_type: medicalData.bloodType,
-        allergies: medicalData.allergies,
-        medications: medicalData.medications,
-        chronic_conditions: medicalData.hasChronicConditions
-          ? medicalData.chronicConditions
+        emergency_contact: medicalData[0].emergencyContact,
+        emergency_phone: medicalData[0].emergencyPhone,
+        blood_type: medicalData[0].bloodType,
+        allergies: medicalData[0].allergies,
+        medications: medicalData[0].medications,
+        chronic_conditions: medicalData[0].hasChronicConditions
+          ? medicalData[0].chronicConditions
           : null,
-        additional_notes: medicalData.additionalNotes,
-        created_at: medicalData.created_at,
-        updated_at: medicalData.updated_at,
+        additional_notes: medicalData[0].additionalNotes,
+        created_at: medicalData[0].created_at,
+        updated_at: medicalData[0].updated_at,
       },
     };
 
