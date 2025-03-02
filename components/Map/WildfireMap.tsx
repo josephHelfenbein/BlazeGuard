@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
@@ -48,6 +48,15 @@ interface WildfireMapProps {
   }) => void;
 }
 
+// Simple debounce function to limit update frequency
+function debounce(func: Function, wait: number) {
+  let timeout: NodeJS.Timeout | null = null;
+  return function (...args: any[]) {
+    if (timeout) clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+}
+
 export default function WildfireMap({
   initialCenter,
   initialZoom,
@@ -59,151 +68,268 @@ export default function WildfireMap({
   const map = useRef<mapboxgl.Map | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
+  const markersRef = useRef<mapboxgl.Marker[]>([]);
+  const sourceAddedRef = useRef<boolean>(false);
+  const lastUpdateTimeRef = useRef<number>(0);
 
-  // Initialize map
+  // Initialize map - simplified approach
   useEffect(() => {
+    // Skip if container is not available
     if (!mapContainer.current) return;
 
-    // Check if Mapbox token is available
+    // Skip if token is missing
     if (!mapboxgl.accessToken) {
-      console.error("Mapbox token is missing!");
       setMapError(
         "Mapbox token is missing. Please check your environment variables."
       );
       return;
     }
 
+    // Skip if map is already initialized
+    if (map.current) return;
+
+    // Create map with minimal options
     try {
-      // Create the map instance
-      map.current = new mapboxgl.Map({
+      const mapOptions = {
         container: mapContainer.current,
-        style: "mapbox://styles/mapbox/standard", // Satellite imagery for terrain
+        style: "mapbox://styles/mapbox/outdoors-v12",
         center: initialCenter,
         zoom: initialZoom,
-        pitch: 60, // 3D view
-        bearing: 0,
-        antialias: true,
-      });
+        attributionControl: false,
+      };
 
-      // Add event listeners
-      map.current.on("load", () => {
-        console.log("Map loaded successfully");
+      // Create map
+      const newMap = new mapboxgl.Map(mapOptions);
+      map.current = newMap;
+
+      // Set up basic event handlers
+      newMap.on("load", () => {
+        console.log("Map loaded");
         setMapLoaded(true);
-
-        if (!map.current) return;
-
-        // Add terrain 3D layer
-        map.current.addSource("mapbox-dem", {
-          type: "raster-dem",
-          url: "mapbox://mapbox.mapbox-terrain-dem-v1",
-          tileSize: 512,
-          maxzoom: 14,
-        });
-
-        map.current.setTerrain({ source: "mapbox-dem", exaggeration: 1.5 });
-
-        // Add move event listener for position updates
-        if (onMapMove) {
-          map.current.on("move", () => {
-            const center = map.current?.getCenter();
-            if (center) {
-              onMapMove({
-                lat: center.lat,
-                lng: center.lng,
-                elevation: 1200, // This should be calculated from terrain data
-                temperature: 85, // This should come from weather data
-                territory: "Yosemite National Park",
-              });
-            }
-          });
-        }
       });
 
-      map.current.on("error", (e) => {
-        console.error("Mapbox error:", e);
-        setMapError(`Map error: ${e.error?.message || "Unknown error"}`);
+      // Set up move handler if needed
+      if (onMapMove) {
+        newMap.on("move", () => {
+          if (!newMap) return;
+          const center = newMap.getCenter();
+          onMapMove({
+            lat: center.lat,
+            lng: center.lng,
+            elevation: 1200,
+            temperature: 85,
+            territory: "Yosemite National Park",
+          });
+        });
+      }
+
+      // Handle errors
+      newMap.on("error", (e) => {
+        console.error("Map error:", e);
       });
     } catch (error) {
-      console.error("Error initializing map:", error);
-      setMapError(
-        `Failed to initialize map: ${error instanceof Error ? error.message : "Unknown error"}`
-      );
+      console.error("Failed to initialize map:", error);
+      setMapError("Failed to initialize map. Please try refreshing the page.");
     }
 
-    // Cleanup function
+    // Cleanup
     return () => {
+      // Clean up markers
+      markersRef.current.forEach((marker) => {
+        try {
+          marker.remove();
+        } catch (e) {}
+      });
+      markersRef.current = [];
+
+      // Clean up map
       if (map.current) {
-        map.current.remove();
+        try {
+          map.current.remove();
+        } catch (e) {
+          console.error("Error removing map:", e);
+        }
         map.current = null;
       }
     };
   }, [initialCenter, initialZoom, onMapMove]);
 
-  // Update fire overlay when data or time changes
+  // Create a memoized update function that uses debouncing
+  const debouncedUpdateData = useCallback(
+    debounce(() => {
+      if (!map.current || !mapLoaded || !fireData) return;
+
+      // Throttle updates to prevent excessive rendering
+      const now = Date.now();
+      if (now - lastUpdateTimeRef.current < 200) return;
+      lastUpdateTimeRef.current = now;
+
+      try {
+        // Check if map is ready
+        if (!map.current.loaded() || !map.current.isStyleLoaded()) {
+          console.log("Map not ready, will try again later");
+          return;
+        }
+
+        // Update fire data
+        updateFireData();
+
+        // Update markers (less frequently)
+        if (now - lastUpdateTimeRef.current > 1000) {
+          updateMarkers();
+        }
+      } catch (error) {
+        console.error("Error updating map:", error);
+      }
+    }, 100),
+    [mapLoaded, fireData, currentTime]
+  );
+
+  // Update fire data when needed
   useEffect(() => {
     if (!mapLoaded || !map.current || !fireData) return;
+    debouncedUpdateData();
+  }, [mapLoaded, fireData, currentTime, debouncedUpdateData]);
+
+  // Update fire data source without recreating layers
+  const updateFireData = () => {
+    if (!map.current) return;
 
     try {
-      // Remove existing fire layer if it exists
-      if (map.current.getLayer("fire-area")) {
-        map.current.removeLayer("fire-area");
+      // Create filtered data
+      const filteredData = {
+        type: "FeatureCollection",
+        features: fireData.features.filter(
+          (feature) => new Date(feature.properties.timestamp) <= currentTime
+        ),
+      };
+
+      // If source doesn't exist yet, create it along with the layer
+      if (!sourceAddedRef.current) {
+        try {
+          // Add new source and layer
+          map.current.addSource("fire-source", {
+            type: "geojson",
+            data: filteredData as any,
+          });
+
+          map.current.addLayer({
+            id: "fire-area",
+            type: "fill",
+            source: "fire-source",
+            paint: {
+              "fill-color": "#ff4d4d",
+              "fill-opacity": 0.7,
+            },
+          });
+
+          sourceAddedRef.current = true;
+        } catch (e) {
+          console.error("Error adding initial source/layer:", e);
+        }
+      } else {
+        // Just update the existing source data without recreating the layer
+        try {
+          const source = map.current.getSource(
+            "fire-source"
+          ) as mapboxgl.GeoJSONSource;
+          if (source && source.setData) {
+            source.setData(filteredData as any);
+          }
+        } catch (e) {
+          console.error("Error updating source data:", e);
+          // If updating fails, try to recreate the source
+          sourceAddedRef.current = false;
+        }
       }
-      if (map.current.getSource("fire-source")) {
-        map.current.removeSource("fire-source");
-      }
-
-      // Filter fire data based on current time
-      const visibleFireData = filterFireDataByTime(fireData, currentTime);
-
-      // Add fire data as a source
-      map.current.addSource("fire-source", {
-        type: "geojson",
-        data: visibleFireData,
-      });
-
-      // Add fire area layer
-      map.current.addLayer({
-        id: "fire-area",
-        type: "fill",
-        source: "fire-source",
-        paint: {
-          "fill-color": "#ff4d4d",
-          "fill-opacity": 0.7,
-        },
-      });
-
-      // Add points of interest
-      addPointsOfInterest(map.current, fireData.pointsOfInterest);
     } catch (error) {
-      console.error("Error updating fire data:", error);
+      console.error("Error updating fire layer:", error);
     }
-  }, [mapLoaded, fireData, currentTime]);
-
-  // Helper functions
-  const filterFireDataByTime = (
-    data: FireData,
-    time: Date
-  ): GeoJSON.FeatureCollection => {
-    return {
-      type: "FeatureCollection",
-      features: data.features.filter(
-        (feature) => new Date(feature.properties.timestamp) <= time
-      ),
-    };
   };
 
-  const addPointsOfInterest = (map: mapboxgl.Map, points: any[]) => {
-    // Add markers for important locations
-    points?.forEach((point) => {
-      const marker = new mapboxgl.Marker({ color: "#000000" })
-        .setLngLat([point.longitude, point.latitude])
-        .setPopup(
-          new mapboxgl.Popup().setHTML(
-            `<h3>${point.name}</h3><p>${point.description}</p>`
-          )
-        )
-        .addTo(map);
-    });
+  // Update markers with optimization
+  const updateMarkers = () => {
+    if (!map.current) return;
+
+    try {
+      // Skip if no valid data
+      if (
+        !fireData.pointsOfInterest ||
+        !Array.isArray(fireData.pointsOfInterest)
+      ) {
+        return;
+      }
+
+      // Create a map of existing markers by ID for quick lookup
+      const existingMarkers = new Map();
+      markersRef.current.forEach((marker, index) => {
+        // Use the marker's element dataset to store the ID
+        const id = marker.getElement().dataset.id;
+        if (id) {
+          existingMarkers.set(id, { marker, index });
+        }
+      });
+
+      // Track which markers to keep
+      const markersToKeep: mapboxgl.Marker[] = [];
+
+      // Add or update markers
+      fireData.pointsOfInterest.forEach((point) => {
+        if (!point.longitude || !point.latitude || !point.id) return;
+
+        // Check if marker already exists
+        const existing = existingMarkers.get(point.id);
+
+        if (existing) {
+          // Update existing marker position if needed
+          const marker = existing.marker;
+          const currentPos = marker.getLngLat();
+
+          // Only update if position changed significantly
+          if (
+            Math.abs(currentPos.lng - point.longitude) > 0.0001 ||
+            Math.abs(currentPos.lat - point.latitude) > 0.0001
+          ) {
+            marker.setLngLat([point.longitude, point.latitude]);
+          }
+
+          // Keep this marker
+          markersToKeep.push(marker);
+          existingMarkers.delete(point.id);
+        } else {
+          // Create new marker
+          try {
+            const el = document.createElement("div");
+            el.dataset.id = point.id;
+
+            const marker = new mapboxgl.Marker(el)
+              .setLngLat([point.longitude, point.latitude])
+              .setPopup(
+                new mapboxgl.Popup().setHTML(
+                  `<h3>${point.name || "Unknown"}</h3><p>${point.description || ""}</p>`
+                )
+              )
+              .addTo(map.current!);
+
+            markersToKeep.push(marker);
+          } catch (e) {
+            console.error("Error adding marker:", e);
+          }
+        }
+      });
+
+      // Remove markers that are no longer needed
+      existingMarkers.forEach(({ marker }) => {
+        try {
+          marker.remove();
+        } catch (e) {}
+      });
+
+      // Update the markers reference
+      markersRef.current = markersToKeep;
+    } catch (error) {
+      console.error("Error updating markers:", error);
+    }
   };
 
   return (
