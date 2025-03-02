@@ -7,3 +7,4 @@ python-dotenv~=1.0
 livekit-plugins-openai[vertex]
 livekit-plugins-google
 livekit-plugins-turn-detector
+asyncpg

@@ -11,14 +11,31 @@ from livekit.agents import (
     llm,
     metrics,
 )
+
 from livekit.agents.pipeline import VoicePipelineAgent
 from livekit.plugins import cartesia, openai, deepgram, silero, google, turn_detector
 from typing import Annotated
+import os
+import asyncpg
 
 
 load_dotenv(dotenv_path=".env.local")
 logger = logging.getLogger("voice-agent")
 
+async def update_agent_status(new_status: str):
+    db_url = os.getenv("DB_URL")
+    try:
+        conn = await asyncpg.connect(db_url)
+        existing = await conn.fetchrow("SELECT id FROM agent_status WHERE id = $1", 1)
+        if existing:
+            await conn.execute("UPDATE agent_status SET status = $1 WHERE id = $2", new_status, 1)
+            logger.info(f"Updated status for agent 1 to {new_status}")
+        else:
+            await conn.execute("INSERT INTO agent_status (id, status) VALUES ($1, $2)", 1, new_status)
+            logger.info(f"Inserted status for agent 1 as {new_status}")
+        await conn.close()
+    except Exception as e:
+        logger.error(f"Failed to update agent status: {e}")
 
 def prewarm(proc: JobProcess):
     proc.userdata["vad"] = silero.VAD.load()
@@ -33,7 +50,9 @@ class AssistantFnc(llm.FunctionContext):
     ):
         """Called when the user asks about the medical data. This function will return the medical data for the given user name."""
         logger.info(f"getting medical data for {name}")
+        await update_agent_status(f"Fetching medical data for {name}")
         url = f"https://henhacks2025.vercel.app/api/medical-data?name={name}"
+
         logger.info(url)
         async with aiohttp.ClientSession() as session:
             headers = {"Accept": "application/json"}
@@ -45,6 +64,8 @@ class AssistantFnc(llm.FunctionContext):
                     user_data = data.get("data", {})
                     medical_info = user_data.get("medical_info", {})
 
+                    await update_agent_status("Idle, waiting for next request")
+
                     return (f"The medical data for {user_data.get('name', 'Unknown')} is: "
                             f"Date of birth: {user_data.get('date_of_birth', 'N/A')}, "
                             f"Blood type: {medical_info.get('blood_type', 'N/A')}, "
@@ -54,6 +75,7 @@ class AssistantFnc(llm.FunctionContext):
                             f"Emergency contact: {medical_info.get('emergency_contact', 'N/A')} "
                             f"at {medical_info.get('emergency_phone', 'N/A')}.")
                 else:
+                    await update_agent_status(f"Error fetching medical data for {name}")
                     raise Exception(f"Failed to get user medical data, status code: {response.status}")
     
     @llm.ai_callable()
@@ -104,9 +126,12 @@ async def entrypoint(ctx: JobContext):
     logger.info(f"connecting to room {ctx.room.name}")
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
 
+    await update_agent_status("Waiting for participant")
+
     # Wait for the first participant to connect
     participant = await ctx.wait_for_participant()
     logger.info(f"starting voice assistant for participant {participant.identity}")
+    await update_agent_status("Active with participant")
 
     # This project is configured to use Deepgram STT, OpenAI LLM and Cartesia TTS plugins
     # Other great providers exist like Cerebras, ElevenLabs, Groq, Play.ht, Rime, and more
@@ -131,6 +156,8 @@ async def entrypoint(ctx: JobContext):
     def on_metrics_collected(agent_metrics: metrics.AgentMetrics):
         metrics.log_metrics(agent_metrics)
         usage_collector.collect(agent_metrics)
+
+    await update_agent_status("Speaking with participant")
 
     agent.start(ctx.room, participant)
 
