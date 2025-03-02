@@ -108,6 +108,8 @@ Example -
 * [![Tailwind][Tailwind]][Tailwind-url]
 * [![LiveKit][LiveKit]][LiveKit-url]
 * [![Gemini][Gemini]][Gemini-url]
+* [![Supabase][Supabase]][Supabase-url]
+* [![Mapbox][Mapbox]][Mapbox-url]
 
 Programmed in
 * [![TypeScript][TypeScript]][TypeScript-url]
@@ -241,3 +243,7 @@ Devpost link: [https://devpost.com/software/blazeguard](https://devpost.com/soft
 [OpenCV-url]: https://opencv.org/
 [MediaPipe]: https://img.shields.io/badge/mediapipe-0097A7?logo=mediapipe&style=for-the-badge&logoColor=white
 [MediaPipe-url]: https://ai.google.dev/edge/mediapipe/solutions/guide
+[Supabase]: https://img.shields.io/badge/supabase-3FCF8E?logo=supabase&style=for-the-badge&logoColor=white
+[Supabase-url]: https://supabase.com/
+[Mapbox]: https://img.shields.io/badge/mapbox-000000?logo=mapbox&style=for-the-badge&logoColor=white
+[Mapbox-url]: https://www.mapbox.com/
