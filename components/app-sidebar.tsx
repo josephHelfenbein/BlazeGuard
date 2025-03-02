@@ -6,7 +6,8 @@ import {
   Settings,
   LayoutDashboard,
   HeartPulse,
-} from 'lucide-react';
+  FileText,
+} from "lucide-react";
 
 import {
   Sidebar,
@@ -17,43 +18,52 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-} from '@/components/ui/sidebar';
+} from "@/components/ui/sidebar";
 
 // Menu items.
 const items = [
   {
-    title: 'Home',
-    url: '#',
+    title: "Home",
+    url: "/home",
     icon: Home,
+    variant: "default",
   },
   {
-    title: 'Dashboard',
-    url: '#',
+    title: "Dashboard",
+    url: "/dashboard",
     icon: LayoutDashboard,
+    variant: "default",
   },
   {
-    title: 'Medical Data',
-    url: '#',
+    title: "Emergency",
+    url: "/emergency",
     icon: HeartPulse,
+    variant: "default",
   },
   {
-    title: 'Inbox',
-    url: '#',
+    title: "Medical Info",
+    url: "/medical-info",
+    icon: FileText,
+    variant: "default",
+  },
+  {
+    title: "Inbox",
+    url: "#",
     icon: Inbox,
   },
   {
-    title: 'Calendar',
-    url: '#',
+    title: "Calendar",
+    url: "#",
     icon: Calendar,
   },
   {
-    title: 'Search',
-    url: '#',
+    title: "Search",
+    url: "#",
     icon: Search,
   },
   {
-    title: 'Settings',
-    url: '#',
+    title: "Settings",
+    url: "#",
     icon: Settings,
   },
 ];
