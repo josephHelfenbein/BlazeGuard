@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { createClient } from "@/utils/supabase/server";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
 export default async function AuthButton() {
   const supabase = await createClient();
