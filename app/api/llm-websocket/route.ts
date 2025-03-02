@@ -1,45 +1,53 @@
-import { NextRequest } from "next/server";
-import { pusher } from "@/lib/pusher";
-import { LLMHandler, RetellRequest } from "./handler";
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { NextResponse } from 'next/server';
 
-const llmHandler = new LLMHandler();
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-lite' });
 
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
-    const request: RetellRequest = await req.json();
-    console.log("Received request:", request);
-
-    if (request.interaction_type === "update_only") {
-      console.log("Received update_only request, ignoring");
-      return new Response(JSON.stringify({ status: "ok" }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
+    const { message, history } = await req.json();
+    if (!message) {
+      return NextResponse.json({ error: 'Message is required' }, { status: 400 });
     }
 
-    const lastUtterance = request.transcript.at(-1)?.content || "";
-    console.log("Last utterance:", lastUtterance);
-    const aiResponse = await llmHandler.fetchGeminiResponse(lastUtterance);
-    console.log("AI response:", aiResponse);
+    const chat = model.startChat({
+      history: history || [],
+    });
 
-    const response = {
-      response_id: request.response_id,
-      content: aiResponse,
-      content_complete: true,
-      end_call: false,
+    const result = await chat.sendMessageStream(message);
+    
+    let fullResponse = '';
+    for await (const chunk of result.stream) {
+      fullResponse += chunk.text();
+    }
+    
+    const finalResponse = {
+      id: `chatcmpl-${Date.now()}`,
+      object: 'chat.completion',
+      created: Math.floor(Date.now() / 1000),
+      model: 'gemini-2.0-flash-lite',
+      usage: {
+        prompt_tokens: 0,
+        completion_tokens: 0,
+        total_tokens: 0,
+      },
+      choices: [
+        {
+          message: {
+            role: 'assistant',
+            content: fullResponse,
+            type: 'ConversationText',
+          },
+          finish_reason: 'stop',
+          index: 0,
+        },
+      ],
     };
-    console.log("Sending response:", response);
-    await pusher.trigger("retell-channel", "response", response);
 
-    return new Response(JSON.stringify(response), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return NextResponse.json(finalResponse);
   } catch (error) {
-    console.error("Error processing request:", error);
-    return new Response(JSON.stringify({ error: "Internal Server Error" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    console.error('Error in Gemini LLM endpoint:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
