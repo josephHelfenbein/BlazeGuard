@@ -6,6 +6,20 @@ export async function GET(req: NextRequest) {
   try {
     const supabase = await createClient();
 
+    // Add authentication check
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Add role-based access control if needed
+    // const { data: { user } } = await supabase.auth.getUser();
+    // if (!user || user.role !== 'emergency_responder') {
+    //   return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+    // }
+
     // Get query parameters
     const searchParams = req.nextUrl.searchParams;
     const name = searchParams.get("name");
