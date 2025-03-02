@@ -1,7 +1,8 @@
 import logging
-
-from dotenv import load_dotenv
+import os
+import asyncio
 import aiohttp
+from dotenv import load_dotenv
 from livekit.agents import (
     AutoSubscribe,
     JobContext,
@@ -11,31 +12,45 @@ from livekit.agents import (
     llm,
     metrics,
 )
-
 from livekit.agents.pipeline import VoicePipelineAgent
 from livekit.plugins import cartesia, openai, deepgram, silero, google, turn_detector
 from typing import Annotated
-import os
-import asyncpg
 
+from realtime import AsyncRealtimeClient, RealtimeSubscribeStates
 
 load_dotenv(dotenv_path=".env.local")
 logger = logging.getLogger("voice-agent")
 
-async def update_agent_status(new_status: str):
-    db_url = os.getenv("DB_URL")
+async def publish_realtime_log(message: str):
+    realtime_url = os.getenv("SUPABASE_REALTIME_URL")
+    anon_key = os.getenv("SUPABASE_ANON_KEY")
+    if not realtime_url or not anon_key:
+        logger.error("SUPABASE_REALTIME_URL or SUPABASE_ANON_KEY not set")
+        return
     try:
-        conn = await asyncpg.connect(db_url)
-        existing = await conn.fetchrow("SELECT id FROM agent_status WHERE id = $1", 1)
-        if existing:
-            await conn.execute("UPDATE agent_status SET status = $1 WHERE id = $2", new_status, 1)
-            logger.info(f"Updated status for agent 1 to {new_status}")
-        else:
-            await conn.execute("INSERT INTO agent_status (id, status) VALUES ($1, $2)", 1, new_status)
-            logger.info(f"Inserted status for agent 1 as {new_status}")
-        await conn.close()
+        client = AsyncRealtimeClient(realtime_url, anon_key)
+        await client.connect()
+        channel = client.channel("agent_logs", {"config": {"broadcast": {"ack": False}}})
+
+        def on_subscribe(status, err):
+            if status == RealtimeSubscribeStates.SUBSCRIBED:
+                logger.info("Subscribed to agent_logs channel.")
+            elif status == RealtimeSubscribeStates.CLOSED:
+                logger.error("Realtime channel closed unexpectedly.")
+            elif err:
+                logger.error(f"Channel subscribe error: {err}")
+
+        await channel.subscribe(on_subscribe)
+        await channel.send_broadcast("log", {"message": message})
+        await asyncio.sleep(0.2)
+        await client.close()
     except Exception as e:
-        logger.error(f"Failed to update agent status: {e}")
+        logger.error(f"Error publishing realtime log: {e}")
+
+def log_and_broadcast(message: str):
+    logger.info(message)
+    asyncio.create_task(publish_realtime_log(message))
+
 
 def prewarm(proc: JobProcess):
     proc.userdata["vad"] = silero.VAD.load()
@@ -44,69 +59,57 @@ class AssistantFnc(llm.FunctionContext):
     @llm.ai_callable()
     async def get_medical(
         self,
-        name: Annotated[
-            str, llm.TypeInfo(description="The name of the user")
-        ],
+        name: Annotated[str, llm.TypeInfo(description="The name of the user")],
     ):
-        """Called when the user asks about the medical data. This function will return the medical data for the given user name."""
-        logger.info(f"getting medical data for {name}")
-        await update_agent_status(f"Fetching medical data for {name}")
+        """Called when the user asks about the medical data."""
+        log_and_broadcast(f"Searching medical data for {name}")
         url = f"https://henhacks2025.vercel.app/api/medical-data?name={name}"
 
-        logger.info(url)
         async with aiohttp.ClientSession() as session:
             headers = {"Accept": "application/json"}
             async with session.get(url, headers=headers) as response:
                 if response.status == 200:
-                    logger.info(response)
                     data = await response.json()
-                    logger.info(data)
                     user_data = data.get("data", {})
                     medical_info = user_data.get("medical_info", {})
-
-                    await update_agent_status("Idle, waiting for next request")
-
-                    return (f"The medical data for {user_data.get('name', 'Unknown')} is: "
-                            f"Date of birth: {user_data.get('date_of_birth', 'N/A')}, "
-                            f"Blood type: {medical_info.get('blood_type', 'N/A')}, "
-                            f"Allergies: {medical_info.get('allergies', 'None')}, "
-                            f"Medications: {medical_info.get('medications', 'None')}, "
-                            f"Conditions: {medical_info.get('chronic_conditions', 'None')}, "
-                            f"Emergency contact: {medical_info.get('emergency_contact', 'N/A')} "
-                            f"at {medical_info.get('emergency_phone', 'N/A')}.")
+                    log_and_broadcast("Fetched medical data; setting status to Idle.")
+                    return (
+                        f"The medical data for {user_data.get('name', 'Unknown')} is: "
+                        f"Date of birth: {user_data.get('date_of_birth', 'N/A')}, "
+                        f"Blood type: {medical_info.get('blood_type', 'N/A')}, "
+                        f"Allergies: {medical_info.get('allergies', 'None')}, "
+                        f"Medications: {medical_info.get('medications', 'None')}, "
+                        f"Conditions: {medical_info.get('chronic_conditions', 'None')}, "
+                        f"Emergency contact: {medical_info.get('emergency_contact', 'N/A')} "
+                        f"at {medical_info.get('emergency_phone', 'N/A')}."
+                    )
                 else:
-                    await update_agent_status(f"Error fetching medical data for {name}")
+                    log_and_broadcast(f"Error fetching medical data for {name}: status {response.status}")
                     raise Exception(f"Failed to get user medical data, status code: {response.status}")
     
     @llm.ai_callable()
     async def get_emergency_info(
         self,
-        query: Annotated[
-            str, llm.TypeInfo(description="The user's question about emergency response or disaster assistance")
-        ],
+        query: Annotated[str, llm.TypeInfo(description="The user's question about emergency response or disaster assistance")],
     ):
-        """Called when the user asks questions about emergency response or disaster assistance. This function will query the RAG system to get relevant information."""
-        logger.info(f"Getting emergency information for query: {query}")
+        """Called when the user asks about emergency response or disaster assistance."""
+        log_and_broadcast(f"Getting emergency information for query: {query}")
         url = "https://henhacks2025.vercel.app/api/rag"
 
         async with aiohttp.ClientSession() as session:
             headers = {"Content-Type": "application/json"}
             payload = {"query": query}
-            
-            logger.info(f"Sending request to {url} with payload: {payload}")
+            log_and_broadcast(f"Searching knowledgebase with prompt: {payload}")
             async with session.post(url, headers=headers, json=payload) as response:
                 if response.status == 200:
                     data = await response.json()
-                    logger.info(f"Received response: {data}")
-                    
-                    # Extract the response text from the API response
+                    log_and_broadcast("Received emergency information response.")
                     response_text = data.get("response", "I couldn't find information about that.")
                     return response_text
                 else:
                     error_text = await response.text()
-                    logger.error(f"Failed to get emergency information, status code: {response.status}, error: {error_text}")
+                    log_and_broadcast(f"Error getting emergency info: status {response.status}, error: {error_text}")
                     raise Exception(f"Failed to get emergency information, status code: {response.status}")
-
 
 fnc_ctx = AssistantFnc()
 
@@ -115,36 +118,24 @@ async def entrypoint(ctx: JobContext):
         role="system",
         text=(
             "You are a voice assistant created by LiveKit. Your interface with users will be voice. "
-            "You should use short and concise responses, and avoiding usage of unpronouncable punctuation. "
+            "You should use short and concise responses, and avoid usage of unpronounceable punctuation. "
             "You were created as a demo to showcase the capabilities of LiveKit's agents framework. "
             "You have access to medical data for users and can retrieve it when asked. "
             "You can also answer questions about emergency response and disaster assistance using a knowledge base. "
             "When users ask about emergency procedures, disaster assistance, or related topics, use the get_emergency_info function to provide accurate information."
         ),
     )
-
-    logger.info(f"connecting to room {ctx.room.name}")
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
+    log_and_broadcast("Connected to room; waiting for participant.")
 
-    await update_agent_status("Waiting for participant")
-
-    # Wait for the first participant to connect
     participant = await ctx.wait_for_participant()
-    logger.info(f"starting voice assistant for participant {participant.identity}")
-    await update_agent_status("Active with participant")
+    log_and_broadcast("Participant connected; starting session.")
 
-    # This project is configured to use Deepgram STT, OpenAI LLM and Cartesia TTS plugins
-    # Other great providers exist like Cerebras, ElevenLabs, Groq, Play.ht, Rime, and more
-    # Learn more and pick the best one for your app:
-    # https://docs.livekit.io/agents/plugins
     agent = VoicePipelineAgent(
         vad=ctx.proc.userdata["vad"],
         stt=deepgram.STT(),
         llm=openai.LLM.with_vertex(model="google/gemini-2.0-flash-exp"),
-        tts=google.TTS(
-            voice_name="Aoede",
-            speaking_rate=1,
-        ),
+        tts=google.TTS(voice_name="Aoede", speaking_rate=1),
         turn_detector=turn_detector.EOUModel(),
         fnc_ctx=fnc_ctx,
         chat_ctx=initial_ctx,
@@ -156,14 +147,12 @@ async def entrypoint(ctx: JobContext):
     def on_metrics_collected(agent_metrics: metrics.AgentMetrics):
         metrics.log_metrics(agent_metrics)
         usage_collector.collect(agent_metrics)
-
-    await update_agent_status("Speaking with participant")
+        log_and_broadcast(f"Metrics collected: {agent_metrics}")
 
     agent.start(ctx.room, participant)
-
-    # The agent should be polite and greet the user when it joins :)
+    log_and_broadcast("Agent started; greeting participant.")
     await agent.say("Hey, how can I help you today?", allow_interruptions=True)
-
+    log_and_broadcast("Greeting sent; awaiting further instructions.")
 
 if __name__ == "__main__":
     cli.run_app(
