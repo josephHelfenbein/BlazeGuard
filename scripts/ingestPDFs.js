@@ -1,20 +1,22 @@
-import * as fs from "fs";
-import * as path from "path";
+const fs = require("fs");
+const path = require("path");
 // Use require for pdf-parse to avoid TypeScript errors
 const pdfParse = require("pdf-parse");
-import { createClient } from "@supabase/supabase-js";
-import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
-import { SupabaseVectorStore } from "@langchain/community/vectorstores/supabase";
-import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
-import { Document } from "langchain/document";
-import * as dotenv from "dotenv";
+const { createClient } = require("@supabase/supabase-js");
+const { GoogleGenerativeAIEmbeddings } = require("@langchain/google-genai");
+const {
+  SupabaseVectorStore,
+} = require("@langchain/community/vectorstores/supabase");
+const { RecursiveCharacterTextSplitter } = require("langchain/text_splitter");
+const { Document } = require("langchain/document");
+const dotenv = require("dotenv");
 
 // Load environment variables
 dotenv.config();
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
-const geminiApiKey = process.env.GEMINI_API_KEY as string;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const geminiApiKey = process.env.GEMINI_API_KEY;
 
 if (!supabaseUrl || !supabaseKey || !geminiApiKey) {
   console.error("Missing environment variables");
@@ -27,7 +29,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 // Create embeddings model
 const embeddings = new GoogleGenerativeAIEmbeddings({
   apiKey: geminiApiKey,
-  modelName: "embedding-001",
+  modelName: "text-embedding-004",
 });
 
 // Create vector store
@@ -40,14 +42,14 @@ const vectorStore = new SupabaseVectorStore(embeddings, {
 const DATA_DIR = path.join(process.cwd(), "data");
 
 // Function to extract text from PDF
-async function extractTextFromPDF(filePath: string): Promise<string> {
+async function extractTextFromPDF(filePath) {
   const dataBuffer = fs.readFileSync(filePath);
   const data = await pdfParse(dataBuffer);
   return data.text;
 }
 
 // Function to split text into chunks
-async function splitTextIntoChunks(text: string): Promise<Document[]> {
+async function splitTextIntoChunks(text) {
   const splitter = new RecursiveCharacterTextSplitter({
     chunkSize: 1000,
     chunkOverlap: 200,
@@ -57,10 +59,7 @@ async function splitTextIntoChunks(text: string): Promise<Document[]> {
 }
 
 // Process PDF and store embeddings
-async function processPDFAndStoreEmbeddings(
-  pdfPath: string,
-  metadata: Record<string, any> = {}
-): Promise<{ success: boolean; count?: number; error?: any }> {
+async function processPDFAndStoreEmbeddings(pdfPath, metadata = {}) {
   try {
     console.log(`Processing PDF: ${pdfPath}`);
 
@@ -146,6 +145,3 @@ ingestAllPDFs()
     console.error("Error during ingestion:", err);
     process.exit(1);
   });
-
-// Add this line to make the file a module
-export {};
