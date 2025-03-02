@@ -43,7 +43,7 @@ export default function WildfireMap({
       // Create the map instance
       map.current = new mapboxgl.Map({
         container: mapContainer.current,
-        style: "mapbox://styles/mapbox/satellite-v9", // Satellite imagery for terrain
+        style: "mapbox://styles/mapbox/standard", // Satellite imagery for terrain
         center: initialCenter,
         zoom: initialZoom,
         pitch: 60, // 3D view
