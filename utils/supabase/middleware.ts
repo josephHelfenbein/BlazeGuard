@@ -43,7 +43,8 @@ export const updateSession = async (request: NextRequest) => {
     if (
       request.nextUrl.pathname === '/' ||
       request.nextUrl.pathname === '/sign-in' ||
-      request.nextUrl.pathname === '/sign-up'
+      request.nextUrl.pathname === '/sign-up' ||
+      request.nextUrl.pathname === '/api/medical-data'
     ) {
       return response;
     }
