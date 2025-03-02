@@ -21,6 +21,7 @@ export class LLMHandler {
 
   async fetchGeminiResponse(prompt: string): Promise<string> {
     try {
+      console.log("Generating content for prompt:", prompt);
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
         {
@@ -33,7 +34,7 @@ export class LLMHandler {
           }),
         }
       );
-
+      console.log("Gemini response:", response);
       const data = await response.json();
       return (
         data.candidates?.[0]?.content?.parts?.[0]?.text ||
