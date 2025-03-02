@@ -9,6 +9,7 @@ import Link from 'next/link';
 import './globals.css';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/app-sidebar';
+import { Toaster } from 'react-hot-toast';
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -33,6 +34,7 @@ export default function RootLayout({
   return (
     <html lang='en' className={geistSans.className} suppressHydrationWarning>
       <body className='bg-background text-foreground'>
+        <Toaster position='top-center' />
         <ThemeProvider
           attribute='class'
           defaultTheme='system'
