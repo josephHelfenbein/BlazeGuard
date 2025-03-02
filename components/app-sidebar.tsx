@@ -8,7 +8,8 @@ import {
   HeartPulse,
   FileText,
   Map,
-} from 'lucide-react';
+  Flame,
+} from "lucide-react";
 
 import {
   Sidebar,
@@ -20,46 +21,52 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarFooter,
-} from '@/components/ui/sidebar';
+} from "@/components/ui/sidebar";
 
-import { ThemeSwitcher } from '@/components/theme-switcher';
+import { ThemeSwitcher } from "@/components/theme-switcher";
 
 // Menu items.
 const items = [
   {
-    title: 'Home',
-    url: '/home',
+    title: "Home",
+    url: "/home",
     icon: Home,
-    variant: 'default',
+    variant: "default",
   },
   {
-    title: 'Dashboard',
-    url: '/dashboard',
+    title: "Dashboard",
+    url: "/dashboard",
     icon: LayoutDashboard,
-    variant: 'default',
+    variant: "default",
   },
   {
-    title: 'Live Map',
-    url: '/live-map',
+    title: "Live Map",
+    url: "/live-map",
     icon: Map,
-    variant: 'default',
+    variant: "default",
   },
   {
-    title: 'Emergency',
-    url: '/emergency',
+    title: "Wildfire Map",
+    url: "/wildfire-tracker",
+    icon: Flame,
+    variant: "default",
+  },
+  {
+    title: "Emergency",
+    url: "/emergency",
     icon: HeartPulse,
-    variant: 'default',
+    variant: "default",
   },
   {
-    title: 'Medical Info',
-    url: '/medical-info',
+    title: "Medical Info",
+    url: "/medical-info",
     icon: FileText,
-    variant: 'default',
+    variant: "default",
   },
 
   {
-    title: 'Settings',
-    url: '/settings',
+    title: "Settings",
+    url: "/settings",
     icon: Settings,
   },
 ];

@@ -1,22 +1,23 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import WildfireMap from "@/components/Map/WildfireMap";
-import TimelineControl from "@/components/Controls/TimelineControl";
 import AlertsPanel from "@/components/Alerts/AlertsPanel";
 import { Layers, Info, MapPin, Thermometer, Navigation } from "lucide-react";
+import { Alert } from "@/types/alerts";
+import { createClient } from "@/utils/supabase/client";
+import { toast } from "react-hot-toast";
 
-// Mock data - replace with actual API calls
-import { mockFireData, mockAlerts } from "@/data/mockData";
+// Import only the points of interest from mock data
+import { mockAlerts } from "@/data/mockData";
 
 export default function WildfireTrackerPage() {
   // State for time control
   const [startTime] = useState(new Date("2023-07-15T00:00:00"));
-  const [endTime] = useState(new Date("2023-07-18T00:00:00"));
   const [currentTime, setCurrentTime] = useState(
     new Date("2023-07-15T12:00:00")
   );
-  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [wildfireTime, setWildfireTime] = useState<number | null>(null);
 
   // State for map
   const [mapCenter] = useState<[number, number]>([-119.5383, 37.8651]); // Yosemite
@@ -34,7 +35,187 @@ export default function WildfireTrackerPage() {
   });
 
   // State for alerts
-  const [alerts, setAlerts] = useState(mockAlerts);
+  const [alerts, setAlerts] = useState<Alert[]>(mockAlerts);
+
+  // Generate dynamic fire data based on current time
+  const fireData = useMemo(() => {
+    // Default center point
+    const centerLat = 37.8651;
+    const centerLng = -119.5383;
+
+    // Calculate fire spread based on time
+    // If wildfireTime is null, use a small initial fire
+    const timeSeconds = wildfireTime || 0;
+
+    // Calculate spread factor (increases with time)
+    // Start small and grow larger as time progresses
+    const spreadFactor = Math.min(0.05 + (timeSeconds / 120) * 0.2, 0.25);
+
+    // Create a polygon that grows with time
+    const createFirePolygon = () => {
+      // Create 5 points for the polygon
+      const points = [];
+      const numPoints = 5;
+
+      for (let i = 0; i < numPoints; i++) {
+        const angle = (i / numPoints) * Math.PI * 2;
+
+        // Add some randomness to make the fire look more natural
+        const randomFactor = 0.7 + Math.random() * 0.6;
+
+        // Calculate spread distance based on time
+        let distance = spreadFactor * randomFactor;
+
+        // Bias growth eastward and southward
+        // East = 0, South = PI/2
+        const eastBias = Math.cos(angle) > 0 ? 1.5 : 0.7; // Grow more to the east
+        const southBias = Math.sin(angle) > 0 ? 0.7 : 1.5; // Grow more to the south
+        distance *= eastBias * southBias;
+
+        // Calculate coordinates
+        const lat = centerLat + Math.sin(angle) * distance;
+        const lng = centerLng + Math.cos(angle) * distance;
+
+        points.push([lng, lat]);
+      }
+
+      // Close the polygon by adding the first point again
+      points.push(points[0]);
+
+      return points;
+    };
+
+    // Create a GeoJSON feature for the fire
+    return {
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: {
+            id: "fire-live",
+            name: "Yosemite Valley Fire",
+            timestamp: currentTime.toISOString(),
+            intensity:
+              timeSeconds > 60
+                ? "extreme"
+                : timeSeconds > 30
+                  ? "high"
+                  : "medium",
+          },
+          geometry: {
+            type: "Polygon",
+            coordinates: [createFirePolygon()],
+          },
+        },
+      ],
+      pointsOfInterest: [
+        {
+          id: "poi-1",
+          name: "Yosemite Village",
+          description: "Population: 2,500",
+          latitude: 37.8651,
+          longitude: -119.5383,
+        },
+        {
+          id: "poi-2",
+          name: "El Capitan",
+          description: "Landmark",
+          latitude: 37.7341,
+          longitude: -119.6379,
+        },
+        {
+          id: "poi-3",
+          name: "Evacuation Center",
+          description: "Capacity: 500",
+          latitude: 37.8851,
+          longitude: -119.5783,
+        },
+      ],
+    };
+  }, [wildfireTime, currentTime]);
+
+  // Subscribe to the Supabase wildfire channel
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase.channel("wildfire");
+
+    // Listen for time updates
+    channel
+      .on("broadcast", { event: "timeUpdate" }, (payload) => {
+        console.log("Received wildfire time update:", payload);
+        setWildfireTime(payload.payload.time);
+
+        // Update the current time based on the wildfire time (seconds)
+        const newTime = new Date(startTime);
+        newTime.setSeconds(newTime.getSeconds() + payload.payload.time);
+        setCurrentTime(newTime);
+
+        // Show toast for first update
+        if (payload.payload.time === 0) {
+          toast.success("🔥 Connected to live wildfire data!");
+          // Add a new alert
+          const newAlert: Alert = {
+            id: `wildfire-${Date.now()}`,
+            title: "Live Wildfire Data",
+            message: "Connected to live wildfire data stream",
+            timestamp: new Date(),
+            severity: "warning",
+            isRead: false,
+          };
+          setAlerts((prev) => [newAlert, ...prev]);
+        }
+
+        // Add new alerts based on fire progression
+        if (payload.payload.time === 30) {
+          const newAlert: Alert = {
+            id: `wildfire-spread-${Date.now()}`,
+            title: "Fire Spreading",
+            message: "Fire is spreading rapidly to the northeast",
+            timestamp: new Date(),
+            severity: "warning",
+            isRead: false,
+          };
+          setAlerts((prev) => [newAlert, ...prev]);
+        }
+
+        if (payload.payload.time === 60) {
+          const newAlert: Alert = {
+            id: `wildfire-danger-${Date.now()}`,
+            title: "Danger Zone",
+            message:
+              "Fire has reached critical intensity. Evacuation recommended.",
+            timestamp: new Date(),
+            severity: "danger",
+            isRead: false,
+          };
+          setAlerts((prev) => [newAlert, ...prev]);
+        }
+
+        if (payload.payload.time === 90) {
+          const newAlert: Alert = {
+            id: `wildfire-evac-${Date.now()}`,
+            title: "Evacuation Order",
+            message:
+              "Mandatory evacuation for Yosemite Village. Proceed to evacuation centers.",
+            timestamp: new Date(),
+            severity: "danger",
+            isRead: false,
+          };
+          setAlerts((prev) => [newAlert, ...prev]);
+        }
+      })
+      .subscribe((status) => {
+        console.log(`Wildfire subscription status: ${status}`);
+        if (status === "SUBSCRIBED") {
+          toast.success("📡 Subscribed to wildfire channel");
+        }
+      });
+
+    // Cleanup function
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [startTime]);
 
   // Mark alert as read
   const handleMarkAlertAsRead = (id: string) => {
@@ -57,6 +238,11 @@ export default function WildfireTrackerPage() {
         <div className="container mx-auto flex justify-between items-center">
           <h1 className="text-2xl font-bold">Wildfire Tracker</h1>
           <div className="flex items-center space-x-4">
+            {wildfireTime !== null && (
+              <div className="px-3 py-1 bg-red-600 rounded-full text-sm">
+                Live Datas
+              </div>
+            )}
             <button className="p-2 hover:bg-red-600 rounded">
               <Info size={20} />
             </button>
@@ -74,21 +260,21 @@ export default function WildfireTrackerPage() {
           <WildfireMap
             initialCenter={mapCenter}
             initialZoom={mapZoom}
-            fireData={mockFireData}
+            fireData={fireData}
             currentTime={currentTime}
+            onMapMove={handleMapMove}
           />
 
-          {/* Map overlay controls */}
-          <div className="absolute bottom-4 left-4 right-4 z-10">
-            <TimelineControl
-              startTime={startTime}
-              endTime={endTime}
-              currentTime={currentTime}
-              onTimeChange={setCurrentTime}
-              playbackSpeed={playbackSpeed}
-              onPlaybackSpeedChange={setPlaybackSpeed}
-            />
-          </div>
+          {/* Live data indicator overlay */}
+          {wildfireTime !== null && (
+            <div className="absolute bottom-4 left-4 right-4 z-10 bg-black bg-opacity-70 text-white p-3 rounded-md flex justify-between items-center">
+              <div>
+                <span className="text-red-400 font-bold">LIVE</span> Wildfire
+                Data
+              </div>
+              <div className="text-amber-400 font-mono">T+{wildfireTime}s</div>
+            </div>
+          )}
 
           {/* Navigation info */}
           <div className="absolute top-4 left-4 bg-white bg-opacity-90 p-3 rounded shadow-lg text-sm">
@@ -117,7 +303,19 @@ export default function WildfireTrackerPage() {
         <div className="w-full md:w-80 bg-gray-100 p-4 overflow-y-auto">
           <AlertsPanel alerts={alerts} onMarkAsRead={handleMarkAlertAsRead} />
 
-          {/* Additional sidebar content can go here */}
+          {/* Live data indicator */}
+          {wildfireTime !== null && (
+            <div className="mt-4 p-3 bg-red-100 border border-red-300 rounded-md">
+              <h3 className="font-semibold text-red-800">Live Wildfire Data</h3>
+              <p className="text-red-700">
+                Time elapsed: {wildfireTime} seconds
+              </p>
+              <div className="mt-2 text-sm text-gray-700">
+                Data is being streamed in real-time from the wildfire monitoring
+                system.
+              </div>
+            </div>
+          )}
         </div>
       </main>
     </div>

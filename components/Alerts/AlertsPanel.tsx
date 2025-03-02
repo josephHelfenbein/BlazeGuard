@@ -2,27 +2,77 @@
 
 import React from "react";
 import { Bell, AlertTriangle } from "lucide-react";
+import { Alert } from "@/types/alerts";
 
-interface Alert {
+type AlertsPanelProps = {
+  alerts: Alert[];
+  onMarkAsRead: (id: string) => void;
+};
+
+// Define a local interface that matches your hardcoded data structure
+interface FireAlert {
   id: string;
   location: string;
   predictedTime: Date;
-  severity: "low" | "medium" | "high";
+  severity: string;
   message: string;
   isRead: boolean;
-}
-
-interface AlertsPanelProps {
-  alerts: Alert[];
-  onMarkAsRead: (id: string) => void;
 }
 
 export default function AlertsPanel({
   alerts,
   onMarkAsRead,
 }: AlertsPanelProps) {
+  // Hardcoded alerts for wildfire scenario
+  const hardcodedAlerts: FireAlert[] = [
+    {
+      id: "alert-1",
+      location: "Yosemite Village",
+      predictedTime: new Date(Date.now() + 30 * 60000), // 30 minutes from now
+      severity: "high",
+      message:
+        "Fire expected to reach village perimeter. Evacuation recommended.",
+      isRead: false,
+    },
+    {
+      id: "alert-2",
+      location: "Highway 120",
+      predictedTime: new Date(Date.now() + 60 * 60000), // 1 hour from now
+      severity: "high",
+      message: "Fire expected to reach highway. Road closure expected.",
+      isRead: false,
+    },
+    {
+      id: "alert-3",
+      location: "El Capitan Meadow",
+      predictedTime: new Date(Date.now() + 45 * 60000), // 45 minutes from now
+      severity: "high",
+      message:
+        "Rapid fire spread predicted. All personnel must evacuate immediately.",
+      isRead: false,
+    },
+    {
+      id: "alert-4",
+      location: "Glacier Point",
+      predictedTime: new Date(Date.now() + 120 * 60000), // 2 hours from now
+      severity: "low",
+      message:
+        "Smoke conditions expected to worsen. Air quality advisory in effect.",
+      isRead: false,
+    },
+    {
+      id: "alert-5",
+      location: "Mariposa Grove",
+      predictedTime: new Date(Date.now() + 15 * 60000), // 15 minutes from now
+      severity: "high",
+      message:
+        "Fire approaching historic sequoias. Emergency response teams dispatched.",
+      isRead: false,
+    },
+  ];
+
   // Sort alerts by predicted time (most urgent first)
-  const sortedAlerts = [...alerts].sort(
+  const sortedAlerts = [...hardcodedAlerts].sort(
     (a, b) => a.predictedTime.getTime() - b.predictedTime.getTime()
   );
 
