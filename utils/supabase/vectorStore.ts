@@ -7,18 +7,30 @@ export async function createVectorStore() {
 
   const embeddings = new GoogleGenerativeAIEmbeddings({
     apiKey: process.env.GEMINI_API_KEY,
-    modelName: "embedding-001",
+    modelName: "text-embedding-004",
   });
 
   return new SupabaseVectorStore(embeddings, {
     client: supabase,
     tableName: "emergency_response_embeddings",
     queryName: "match_emergency_documents",
-    filter: {},
   });
 }
 
-export async function similaritySearch(query, k = 4) {
-  const vectorStore = await createVectorStore();
-  return vectorStore.similaritySearch(query, k);
+export async function similaritySearch(query: string, k = 4) {
+  console.log(`Performing similarity search for query: "${query}" with k=${k}`);
+  try {
+    const vectorStore = await createVectorStore();
+    const results = await vectorStore.similaritySearch(query, k, {
+      score_threshold: 0.5,
+    });
+    console.log(`Found ${results.length} results`);
+    if (results.length > 0) {
+      console.log(`First result: ${JSON.stringify(results[0], null, 2)}`);
+    }
+    return results;
+  } catch (error) {
+    console.error("Error in similaritySearch:", error);
+    throw error;
+  }
 }

@@ -1,5 +1,5 @@
-import React from 'react';
-import MapboxExample from '../../components/map-components';
+import React from "react";
+import MapboxExample from "../../components/map-components";
 
 const MapPage = () => {
   return (
@@ -14,4 +14,4 @@ const MapPage = () => {
   );
 };
 
-export default MapPage; 
+export default MapPage;

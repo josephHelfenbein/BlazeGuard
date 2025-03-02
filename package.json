@@ -4,9 +4,9 @@
     "dev": "next dev --turbo",
     "build": "next build",
     "start": "next start",
-    "ingest-pdfs": "ts-node scripts/ingestPDFs.ts",
-    "setup-vector-store": "ts-node scripts/setupVectorStore.ts",
-    "check-vector-store": "ts-node scripts/checkVectorStore.ts"
+    "ingest-pdfs": "node scripts/ingestPDFs.js",
+    "setup-vector-store": "node scripts/setupVectorStore.js",
+    "check-vector-store": "node scripts/checkVectorStore.js"
   },
   "dependencies": {
     "@google-cloud/text-to-speech": "^5.8.1",

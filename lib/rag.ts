@@ -28,8 +28,7 @@ export class RAGService {
 
       // Generate prompt with context
       const prompt = `
-You are an emergency response assistant. Use the following information to answer the user's question.
-If you don't know the answer based on the provided information, say so.
+Use the following information to answer the user's question.
 
 CONTEXT:
 ${context}
@@ -41,7 +40,9 @@ ANSWER:
 `;
 
       // Generate response using Gemini
-      const model = this.genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+      const model = this.genAI.getGenerativeModel({
+        model: "gemini-2.0-flash-lite",
+      });
       const result = await model.generateContent(prompt);
       const response = result.response.text();
 

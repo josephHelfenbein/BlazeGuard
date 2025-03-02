@@ -1,11 +1,11 @@
-import { createClient } from "@supabase/supabase-js";
-import * as dotenv from "dotenv";
+const { createClient } = require("@supabase/supabase-js");
+const dotenv = require("dotenv");
 
 // Load environment variables
 dotenv.config();
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
   console.error("Missing Supabase environment variables");
@@ -47,6 +47,3 @@ checkVectorStore()
     console.error("Error:", err);
     process.exit(1);
   });
-
-// Add this line to make the file a module
-export {};
