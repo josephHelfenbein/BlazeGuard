@@ -1,7 +1,6 @@
 // import DeployButton from '@/components/deploy-button';
 import { EnvVarWarning } from '@/components/env-var-warning';
 import HeaderAuth from '@/components/header-auth';
-import { ThemeSwitcher } from '@/components/theme-switcher';
 import { hasEnvVars } from '@/utils/supabase/check-env-vars';
 import { Geist } from 'next/font/google';
 import { ThemeProvider } from 'next-themes';
@@ -69,11 +68,11 @@ export default function RootLayout({
                 </main>
 
                 {/* Footer */}
-                <footer className='border-t py-4 text-center text-xs'>
+                {/* <footer className='border-t py-4 text-center text-xs'>
                   <div className='flex justify-center'>
-                    <ThemeSwitcher />
+                    
                   </div>
-                </footer>
+                </footer> */}
               </div>
             </div>
           </SidebarProvider>

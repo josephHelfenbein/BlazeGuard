@@ -19,7 +19,10 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarFooter,
 } from '@/components/ui/sidebar';
+
+import { ThemeSwitcher } from '@/components/theme-switcher';
 
 // Menu items.
 const items = [
@@ -83,6 +86,9 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      <SidebarFooter>
+        <ThemeSwitcher />
+      </SidebarFooter>
     </Sidebar>
   );
 }
