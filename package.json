@@ -9,6 +9,7 @@
     "check-vector-store": "ts-node scripts/checkVectorStore.ts"
   },
   "dependencies": {
+    "@google-cloud/text-to-speech": "^5.8.1",
     "@google-cloud/vertexai": "^1.9.3",
     "@google/generative-ai": "^0.22.0",
     "@langchain/community": "^0.3.33",
