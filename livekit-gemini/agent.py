@@ -33,12 +33,15 @@ class AssistantFnc(llm.FunctionContext):
     ):
         """Called when the user asks about the medical data. This function will return the medical data for the given user name."""
         logger.info(f"getting medical data for {name}")
-        url = f"https://henhacks2025.vercel.app/api/medical-data?name=${name}"
+        url = f"https://henhacks2025.vercel.app/api/medical-data?name={name}"
+        logger.info(url)
         async with aiohttp.ClientSession() as session:
             headers = {"Accept": "application/json"}
             async with session.get(url, headers=headers) as response:
                 if response.status == 200:
+                    logger.info(response)
                     data = await response.json() 
+                    logger.info(data)
                     user_data = data.get("data", {})
                     medical_info = user_data.get("medical_info", {})
 
