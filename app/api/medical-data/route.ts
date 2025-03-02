@@ -1,18 +1,18 @@
 // app/api/medical-data/route.ts
-import { createClient } from "@/utils/supabase/server";
-import { NextRequest, NextResponse } from "next/server";
+import { createClient } from '@/utils/supabase/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(req: NextRequest) {
   try {
     const supabase = await createClient();
 
     // Add authentication check
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // const {
+    //   data: { session },
+    // } = await supabase.auth.getSession();
+    // if (!session) {
+    //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // }
 
     // Add role-based access control if needed
     // const { data: { user } } = await supabase.auth.getUser();
@@ -22,13 +22,13 @@ export async function GET(req: NextRequest) {
 
     // Get query parameters
     const searchParams = req.nextUrl.searchParams;
-    const name = searchParams.get("name");
+    const name = searchParams.get('name');
 
     // Validate required parameters
     if (!name) {
       return NextResponse.json(
         {
-          error: "Name is required as a query parameter",
+          error: 'Name is required as a query parameter',
         },
         { status: 400 }
       );
@@ -36,15 +36,15 @@ export async function GET(req: NextRequest) {
 
     // Query for the medical info using only fullName and return the best match
     const { data: medicalData, error: medicalError } = await supabase
-      .from("medical_info")
-      .select("*")
-      .ilike("fullName", `%${name}%`)
+      .from('medical_info')
+      .select('*')
+      .ilike('fullName', `%${name}%`)
       .limit(1);
 
     if (medicalError || !medicalData || medicalData.length === 0) {
-      console.error("Database error or no data found:", medicalError);
+      console.error('Database error or no data found:', medicalError);
       return NextResponse.json(
-        { error: "No user found with the provided name" },
+        { error: 'No user found with the provided name' },
         { status: 404 }
       );
     }
@@ -71,10 +71,10 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ data: formattedData });
   } catch (error) {
-    console.error("Error in medical data API:", error);
+    console.error('Error in medical data API:', error);
     return NextResponse.json(
       {
-        error: "Internal server error",
+        error: 'Internal server error',
         details: error instanceof Error ? error.message : String(error),
       },
       { status: 500 }
