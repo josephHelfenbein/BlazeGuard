@@ -162,7 +162,7 @@ Project Link: [https://github.com/josephHelfenbein/henhacks2025](https://github.
 <!-- ACKNOWLEDGMENTS -->
 ## Acknowledgments
 
-This project was submitted to the henhacks2025 2025 hackathon for the Lifestyle/Health track.
+This project was submitted to the HenHacks 2025 hackathon for the Safety/Emergency and Health/Wellness tracks.
 
 Devpost link: [https://devpost.com/software/blazeguard](https://devpost.com/software/blazeguard)
 
