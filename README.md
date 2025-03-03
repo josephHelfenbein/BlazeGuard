@@ -31,6 +31,7 @@
 <div align="center">
 
 <a href="https://github.com/josephHelfenbein/henhacks2025">
+    <img src="blazeguard.svg" alt="Logo" width="80" height="80">
 
   </a><h3>BlazeGuard</h3>
 
