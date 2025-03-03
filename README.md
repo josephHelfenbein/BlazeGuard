@@ -133,14 +133,38 @@ Here are the steps to run the project locally if you want to develop your own pr
   ```sh
   npm install npm@latest -g
   ```
+* LiveKit SDK
+     - MacOS
+       ```sh
+       brew update && brew install livekit-cli
+       ```
+     - Windows
+       ```sh
+       winget install LiveKit.LiveKitCLI
+       ```
+     - Linux
+       ```sh
+       curl -sSL https://get.livekit.io/cli | bash
+       ```
+       Generate localhost access token
+       ```sh
+       lk token create \
+       --api-key devkey --api-secret secret \
+       --join --room test_room --identity test_user \
+       --valid-for 24h
+       ```
 
-### Run Frontend
+### Run Project
 
-You can run the project using 
+You can run the frontend using 
 ```sh
 npm run server
 ```
-
+And you can run the Livekit agent using
+```sh
+cd livekit-gemini
+python3 agent.py dev
+``` 
 
 <!-- LICENSE -->
 ## License
