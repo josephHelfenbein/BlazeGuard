@@ -153,6 +153,14 @@ Here are the steps to run the project locally if you want to develop your own pr
        --join --room test_room --identity test_user \
        --valid-for 24h
        ```
+       Install dependencies
+       ```sh
+       cd livekit-gemini
+       python3 -m venv venv
+       source venv/bin/activate
+       pip install -r requirements.txt
+       python3 agent.py download-files
+       ```
 
 ### Run Project
 
